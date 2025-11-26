@@ -1,6 +1,7 @@
 import streamlit as st
 from pypdf import PdfReader
-import textwrap
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="Chat with your PDF", page_icon="📄")
 st.title("Chat with your PDF 📄💬")
@@ -43,6 +44,23 @@ if uploaded_file is not None:
         question = st.text_input("Ask a question about your PDF:")
 
         if question and chunks:
-            st.info("Next step: Add embeddings and QA logic to answer this question from your PDF.")
-    else:
-        st.warning("No text could be extracted from this PDF.")
+            # Use TF-IDF for simple text similarity (no heavy dependencies)
+            vectorizer = TfidfVectorizer(lowercase=True, stop_words='english')
+            
+            # Combine chunks and question for vectorization
+            all_texts = chunks + [question]
+            tfidf_matrix = vectorizer.fit_transform(all_texts)
+            
+            # Calculate similarity between question and all chunks
+            question_vector = tfidf_matrix[-1]  # Last vector is the question
+            chunk_vectors = tfidf_matrix[:-1]   # All before are chunks
+            
+            similarities = cosine_similarity(question_vector, chunk_vectors)[0]
+            
+            # Get the most similar chunk
+            top_idx = similarities.argmax()
+            best_match_score = similarities[top_idx]
+            
+            st.subheader("Best-matching answer from your PDF:")
+            st.info(f"Match confidence: {best_match_score:.1%}")
+            st.write(chunks[top_idx])
